@@ -16,7 +16,7 @@ from lm_eval.api.task import Task
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
@@ -185,7 +185,7 @@ def evaluate(
         pbar_limit = len(task_docs) if not limit else np.minimum(limit, len(task_docs))
 
         for doc_id, doc in enumerate(
-            tqdm(itertools.islice(task_docs, 0, limit), total=pbar_limit)
+            tqdm(itertools.islice(task_docs, 0, limit), total=pbar_limit, disable=True)
         ):
             docs[(task_template_key, doc_id)] = doc
             ctx, fewshotex_logging_info = task.fewshot_context(
@@ -249,12 +249,12 @@ def evaluate(
             preds.append(example["pred"])
             example.update(fewshot_logging_info)
             example.update(task.get_logging_info())
-            example_logger.info(json.dumps(example))
+            # example_logger.info(json.dumps(example))
         else:
             metrics = output
             example = fewshot_logging_info
             example.update(task.get_logging_info())
-            example_logger.info(json.dumps(example))
+            # example_logger.info(json.dumps(example))
 
         for metric, value in metrics.items():
             vals[(task_template_key, metric)].append(value)

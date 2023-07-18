@@ -182,7 +182,7 @@ class TokenLM(LM):
         # TODO: Implement caching once we've confirmed the perplexity implementation
         # TODO: Automatic batch size detection for vectorization
         loglikelihoods = []
-        for (string,) in tqdm(requests):
+        for (string,) in tqdm(requests, disable=True):
             rolling_token_windows = list(
                 map(
                     utils.make_disjoint_window,
@@ -209,7 +209,7 @@ class TokenLM(LM):
     def _loglikelihood_tokens(
         self,
         requests: List[Tuple[Tuple[str, str], TokenSequence, TokenSequence]],
-        disable_tqdm: Optional[bool] = False,
+        disable_tqdm: Optional[bool] = True,
     ) -> List[Tuple[float, bool]]:
         """Helper method for computing log-likelihood of generating a
         continuation from a context that have both been tokenized/encoded.

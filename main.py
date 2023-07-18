@@ -151,7 +151,7 @@ def setup_example_logger(output_path, separator):
     handler = logging.FileHandler(filename)
     handler.setFormatter(formatter)
     example_logger.addHandler(handler)
-    example_logger.setLevel(logging.INFO)
+    example_logger.setLevel(logging.WARNING)
 
 
 def main():

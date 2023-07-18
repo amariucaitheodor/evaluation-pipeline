@@ -344,6 +344,7 @@ def bootstrap_stderr(f, xs, iters):
             [(i, xs) for i in range(iters // chunk_size)],
         ),
         total=iters // chunk_size,
+        disable=True,
     ):
         # sample w replacement
         res.extend(bootstrap)

@@ -329,7 +329,7 @@ class HuggingFaceAutoLM(TokenLM):
         results = []
         reorder = utils.Reorderer(requests, _collate)
         for chunk in utils.chunks(
-            tqdm(reorder.get_reordered(), disable=False), self.batch_size
+            tqdm(reorder.get_reordered(), disable=True), self.batch_size
         ):
             context = [c[0] for c in chunk]
             request_args = chunk[0][1]
@@ -487,7 +487,7 @@ class AutoSeq2SeqLM(HuggingFaceAutoLM):
 
     def loglikelihood_rolling(self, requests: List[Tuple[str, str]]) -> List[float]:
         loglikelihoods = []
-        for (string,) in tqdm(requests):
+        for (string,) in tqdm(requests, disable=True):
             rolling_token_windows = list(
                 map(
                     utils.make_disjoint_window,
@@ -536,7 +536,7 @@ class AutoSeq2SeqLM(HuggingFaceAutoLM):
     def _loglikelihood_tokens(
         self,
         requests: List[Tuple[Tuple[str, str], TokenSequence, TokenSequence]],
-        disable_tqdm: Optional[bool] = False,
+        disable_tqdm: Optional[bool] = True,
     ) -> List[Tuple[float, bool]]:
         results = []
         for chunk in tqdm(
@@ -715,7 +715,7 @@ class AutoMaskedLM(HuggingFaceAutoLM):
         """
         scores = []
         
-        for chunk in utils.chunks(tqdm(requests, disable=False), self.batch_size):
+        for chunk in utils.chunks(tqdm(requests, disable=True), self.batch_size):
             context, continuation = zip(*chunk)
             context = [
                 f"{self.tokenizer.eos_token}" if len(text) == 0 else text for text in context
