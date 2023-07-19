@@ -246,7 +246,8 @@ def evaluate(
 
         if task.save_examples:
             metrics, example = output
-            preds.append(example["pred"])
+            if predictions_path:
+                preds.append(example["pred"])
             example.update(fewshot_logging_info)
             example.update(task.get_logging_info())
             # example_logger.info(json.dumps(example))

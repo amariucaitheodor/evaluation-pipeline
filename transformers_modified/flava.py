@@ -1,38 +1,33 @@
-"""
-This implementation is based closely on EncT5: https://arxiv.org/abs/2110.08426
-This approach tends to perform better than simply appending a classification head
-to T5, especially when reducing the number of parameters in T5-like models.
-"""
-
 import torch
 import copy
 from torch import nn
-from transformers import T5PreTrainedModel
-from transformers.models.t5.modeling_t5 import T5Stack
 from transformers.modeling_outputs import SequenceClassifierOutput
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from alkmi.models.flava import FlavaPreTrainedModel
+from alkmi.models.flava import FlavaTextModel
+from alkmi.models.flava import FlavaTextConfig
 from transformers_modified.utils import AdaptivePooler, MeanPooler
 
 
-class T5ForSequenceClassification(T5PreTrainedModel):
-    def __init__(self, config, pooler='adaptive'):
+class FlavaForSequenceClassification(FlavaPreTrainedModel):
+    def __init__(self, config: FlavaTextConfig, encoder: FlavaTextModel, pooler='adaptive'):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
 
-        self.shared = nn.Embedding(config.vocab_size, config.d_model)
+        self.shared = nn.Embedding(config.vocab_size, config.hidden_size)
 
         encoder_config = copy.deepcopy(config)
         encoder_config.is_decoder = False
         encoder_config.use_cache = False
         encoder_config.is_encoder_decoder = False
 
-        self.encoder = T5Stack(encoder_config, self.shared)
+        self.encoder: FlavaTextModel = encoder
 
         pooler_class = AdaptivePooler if pooler == 'adaptive' else MeanPooler
         self.pooler = pooler_class(input_size=config.hidden_size)
-        self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
@@ -45,8 +40,8 @@ class T5ForSequenceClassification(T5PreTrainedModel):
             self,
             input_ids=None,
             attention_mask=None,
-            head_mask=None,
-            inputs_embeds=None,
+            token_type_ids=None,
+            position_ids=None,
             output_attentions=None,
             output_hidden_states=None,
             return_dict=None,
@@ -63,8 +58,8 @@ class T5ForSequenceClassification(T5PreTrainedModel):
         outputs = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,

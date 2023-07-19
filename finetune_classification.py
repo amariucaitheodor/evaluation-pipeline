@@ -38,7 +38,6 @@ from transformers import (
     EarlyStoppingCallback,
     EvalPrediction,
     HfArgumentParser,
-    IntervalStrategy,
     PretrainedConfig,
     Trainer,
     TrainingArguments,
@@ -46,9 +45,8 @@ from transformers import (
     set_seed,
 )
 from transformers.trainer_utils import get_last_checkpoint
-from transformers.utils import check_min_version, send_example_telemetry
+from transformers.utils import send_example_telemetry
 from transformers.utils.versions import require_version
-
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 # check_min_version("4.27.0.dev0")
@@ -139,17 +137,17 @@ class DataTrainingArguments:
         },
     )
     patience: Optional[int] = field(
-       default=None,
-       metadata={
+        default=None,
+        metadata={
             "help": (
                 "Number of evaluation steps without improvement > epsilon before stopping fine-tuning. "
                 "Requires the use of the --eval_every argument."
             )
-       },
+        },
     )
     eval_every: Optional[int] = field(
         default=None,
-        metadata = {
+        metadata={
             "help": (
                 "Number of steps between evaluations (MUST be set if patience is set)."
             )
@@ -177,7 +175,7 @@ class DataTrainingArguments:
             assert train_extension in ["csv", "json"], "`train_file` should be a csv or a json file."
             validation_extension = self.validation_file.split(".")[-1]
             assert (
-                validation_extension == train_extension
+                    validation_extension == train_extension
             ), "`validation_file` should have the same extension (csv or json) as `train_file`."
 
 
@@ -213,7 +211,7 @@ class ModelArguments:
         metadata={"help": "The specific model version to use (can be a branch name, tag name or commit id)."},
     )
     use_auth_token: bool = field(
-        default=False,
+        default=True,
         metadata={
             "help": (
                 "Will use the token generated when running `huggingface-cli login` (necessary to use this script "
@@ -239,9 +237,9 @@ def main():
         model_args, data_args, training_args = parser.parse_json_file(json_file=os.path.abspath(sys.argv[1]))
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
-    
+
     # Check for the use of early stopping
-    if data_args.patience: 
+    if data_args.patience:
         training_args.eval_steps = data_args.eval_every
         training_args.save_total_limit = 1
         training_args.load_best_model_at_end = True
@@ -312,7 +310,7 @@ def main():
             "glue",
             data_args.task_name,
             cache_dir=model_args.cache_dir,
-            use_auth_token=True if model_args.use_auth_token else None,
+            use_auth_token=model_args.use_auth_token,
         )
     elif data_args.dataset_name is not None:
         # Downloading and loading a dataset from the hub.
@@ -320,7 +318,7 @@ def main():
             data_args.dataset_name,
             data_args.dataset_config_name,
             cache_dir=model_args.cache_dir,
-            use_auth_token=True if model_args.use_auth_token else None,
+            use_auth_token=model_args.use_auth_token,
         )
     else:
         # Loading a dataset from your local files.
@@ -334,14 +332,14 @@ def main():
                 train_extension = data_args.train_file.split(".")[-1]
                 test_extension = data_args.test_file.split(".")[-1]
                 assert (
-                    test_extension == train_extension
+                        test_extension == train_extension
                 ), "`test_file` should have the same extension (csv or json) as `train_file`."
                 data_files["test"] = data_args.test_file
             else:
                 train_extension = data_args.train_file.split(".")[-1]
                 validation_extension = data_args.validation_file.split(".")[-1]
                 assert (
-                    validation_extension == train_extension
+                        validation_extension == train_extension
                 ), "`validation_file` should have the same extension (csv or json) as `train_file`."
                 data_files["test"] = data_args.validation_file
 
@@ -354,7 +352,7 @@ def main():
                 "csv",
                 data_files=data_files,
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                use_auth_token=model_args.use_auth_token,
             )
         else:
             # Loading a dataset from local json files
@@ -362,7 +360,7 @@ def main():
                 "json",
                 data_files=data_files,
                 cache_dir=model_args.cache_dir,
-                use_auth_token=True if model_args.use_auth_token else None,
+                use_auth_token=model_args.use_auth_token,
             )
     # See more about loading any type of standard or custom dataset at
     # https://huggingface.co/docs/datasets/loading_datasets.html.
@@ -386,27 +384,33 @@ def main():
             label_list = raw_datasets["train"].unique("label")
             label_list.sort()  # Let's sort it for determinism
             num_labels = len(label_list)
-    
+
     is_binary = (num_labels == 2)
 
     # Load pretrained model and tokenizer
     #
     # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
-    config = AutoConfig.from_pretrained(
-        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-        num_labels=num_labels,
-        finetuning_task=data_args.task_name,
-        cache_dir=model_args.cache_dir,
-        revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
+    try:
+        config = AutoConfig.from_pretrained(
+            model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+            num_labels=num_labels,
+            finetuning_task=data_args.task_name,
+            cache_dir=model_args.cache_dir,
+            revision=model_args.model_revision,
+            use_auth_token=model_args.use_auth_token,
+        )
+    except ValueError as e:
+        if "flava" in model_args.model_name_or_path:
+            print("Using FLAVA, no config loaded for now.")
+        else:
+            raise e
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
         use_fast=model_args.use_fast_tokenizer,
         revision=model_args.model_revision,
-        use_auth_token=True if model_args.use_auth_token else None,
+        use_auth_token=model_args.use_auth_token,
     )
     try:
         model = AutoModelForSequenceClassification.from_pretrained(
@@ -415,11 +419,12 @@ def main():
             config=config,
             cache_dir=model_args.cache_dir,
             revision=model_args.model_revision,
-            use_auth_token=True if model_args.use_auth_token else None,
+            use_auth_token=model_args.use_auth_token,
             ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
         )
     except ValueError as e:
         from transformers import T5Config
+        from alkmi.models.flava import FlavaConfig
         if isinstance(config, T5Config):
             from transformers_modified.t5 import T5ForSequenceClassification
             model = T5ForSequenceClassification.from_pretrained(
@@ -428,16 +433,32 @@ def main():
                 config=config,
                 cache_dir=model_args.cache_dir,
                 revision=model_args.model_revision,
-                use_auth_token=True if model_args.use_auth_token else None,
+                use_auth_token=model_args.use_auth_token,
                 ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
             )
+        elif "flava" in model_args.model_name_or_path:
+            from alkmi.models.flava import FlavaForPreTraining, FlavaModel
+            from transformers_modified.flava import FlavaForSequenceClassification
+            from alkmi.callbacks.utils import replace_flava_submodel_with_orig_for_eval
+            model = FlavaForPreTraining.from_pretrained(
+                model_args.model_name_or_path,
+                from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                cache_dir=model_args.cache_dir,
+                revision=model_args.model_revision,
+                use_auth_token=model_args.use_auth_token,
+                ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
+            )
+            # optimized_text_model = replace_flava_submodel_with_orig_for_eval(model)
+            config = model.flava.text_model.config
+            print("Using FLAVA, config loaded now!")
+            model = FlavaForSequenceClassification(config, encoder=model.flava.text_model)
         else:
             raise e
-    
+
     # Freeze all parameters (including embeddings) except the classifier head
     if model_args.freeze_model:
         for name, param in model.named_parameters():
-            if "classifier" not in name and not name.startswith("score"): # classifier layer
+            if "classifier" not in name and not name.startswith("score"):  # classifier layer
                 param.requires_grad = False
 
     # Preprocessing the raw_datasets
@@ -459,13 +480,13 @@ def main():
             sentence1_key, sentence2_key = "question", "sentence"
         # special cases
         elif "paragraph" in non_label_column_names and \
-             "question" in non_label_column_names and \
-             "answer" in non_label_column_names:        # MultiRC
+                "question" in non_label_column_names and \
+                "answer" in non_label_column_names:  # MultiRC
             sentence1_key, sentence2_key = ["question", "answer"], "paragraph"
             template = "Question: {} Answer: {}"
         elif "text" in non_label_column_names and \
-             "span1_text" in non_label_column_names and \
-             "span2_text" in non_label_column_names:    # WSC
+                "span1_text" in non_label_column_names and \
+                "span2_text" in non_label_column_names:  # WSC
             sentence1_key, sentence2_key = ["span2_text", "span1_text"], "text"
             template = "Does \"{}\" refer to \"{}\" in this passage?"
         elif "sentence" in non_label_column_names and "linguistic_feature_type" in non_label_column_names:
@@ -486,9 +507,9 @@ def main():
     # Some models have set the order of the labels to use, so let's make sure we do use it.
     label_to_id = None
     if (
-        model.config.label2id != PretrainedConfig(num_labels=num_labels).label2id
-        and data_args.task_name is not None
-        and not is_regression
+            model.config.label2id != PretrainedConfig(num_labels=num_labels).label2id
+            and data_args.task_name is not None
+            and not is_regression
     ):
         # Some have all caps in their config, some don't.
         label_name_to_id = {k.lower(): v for k, v in model.config.label2id.items()}
@@ -527,7 +548,8 @@ def main():
             )
         else:
             args = (
-                (examples[sentence1_key],) if sentence2_key is None else (examples[sentence1_key], examples[sentence2_key])
+                (examples[sentence1_key],) if sentence2_key is None else (
+                    examples[sentence1_key], examples[sentence2_key])
             )
         result = tokenizer(*args, padding=padding, max_length=max_seq_length, truncation=True)
 
@@ -604,7 +626,7 @@ def main():
         data_collator = DataCollatorWithPadding(tokenizer, pad_to_multiple_of=8)
     else:
         data_collator = None
-    
+
     if is_regression:
         training_args.metric_for_best_model = "mse"
     elif is_binary:
@@ -623,7 +645,7 @@ def main():
         compute_metrics=compute_metrics,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        callbacks = callbacks,
+        callbacks=callbacks,
     )
 
     # Training
@@ -718,6 +740,7 @@ def main():
     else:
         trainer.create_model_card(**kwargs)
     """
+
 
 def _mp_fn(index):
     # For xla_spawn (TPUs)

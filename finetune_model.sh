@@ -22,8 +22,6 @@ else
     OUT_DIR=$SUBTASK_NAME
 fi
 
-mkdir -p $MODEL_PATH/finetune/$OUT_DIR/
-
 python finetune_classification.py \
   --model_name_or_path $MODEL_PATH \
   --output_dir $MODEL_PATH/finetune/$OUT_DIR/ \
