@@ -22,9 +22,11 @@ else
     OUT_DIR=$SUBTASK_NAME
 fi
 
+mkdir -p results/"$MODEL_PATH"/finetune/$OUT_DIR/
+
 python finetune_classification.py \
   --model_name_or_path $MODEL_PATH \
-  --output_dir $MODEL_PATH/finetune/$OUT_DIR/ \
+  --output_dir results/"$MODEL_PATH"/finetune/$OUT_DIR/ \
   --train_file filter-data/${TASK_NAME}_filtered/$SUBTASK_NAME.train.json \
   --validation_file filter-data/${TASK_NAME}_filtered/$SUBTASK_NAME.$VALID_NAME.json \
   --do_train \

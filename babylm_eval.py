@@ -33,7 +33,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("model_path", type=str,
                         help="Path to huggingface model and tokenizer.")
-    parser.add_argument("model_type", type=str, choices=["decoder only", "decoder", "encoder only", "encoder", "encoder-decoder"],
+    parser.add_argument("model_type", type=str,
+                        choices=["decoder only", "decoder", "encoder only", "encoder", "encoder-decoder"],
                         help="Language model architecture.")
     parser.add_argument("--tasks", "-t", type=str, choices=["blimp", "supplement", "all"], default="all",
                         help="Tasks on which we evaluate.")
@@ -50,6 +51,7 @@ if __name__ == "__main__":
                         "encoder-decoder": "hf-seq2seq"}
     if "flava" in args.model_path:
         from alkmi.models.flava import FlavaForPreTraining
+
         model = FlavaForPreTraining.from_pretrained(args.model_path)
         optimized_text_model = replace_flava_submodel_with_orig_for_eval(model)
         eval_model = FlavaLM(model=model, batch_size=32, enable_progress_bar=True)
@@ -83,7 +85,7 @@ if __name__ == "__main__":
                                                   args.num_fewshot)
         print(f"{task_title}:\t{accuracies[task_title] * 100:.2f}%")
         # Write scores to file
-        out_path = os.path.join(args.model_path, "zeroshot", task_title, "eval_results.json")
+        out_path = os.path.join("results", args.model_path, "zeroshot", task_title, "eval_results.json")
         out_dir = os.path.dirname(out_path)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
