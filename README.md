@@ -77,7 +77,7 @@ Here are the defaults that we use:
 We provide a shell script that will collect your results into a single file:
 
 ```bash
-./collect_results.py path/to/model_and_tokenizer
+python collect_results.py results/theodor1289/flava_vision_infused
 ```
 
 This will output a file called `all_predictions.json` in the root folder of this repository. We will ask you to upload

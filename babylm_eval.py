@@ -17,7 +17,7 @@ TASKS = {
 
 
 def accuracy_on_task(task_name, eval_model, template_name, num_fewshot):
-    predictions_path = os.path.join(args.model_path, "zeroshot", task_title, "predictions.txt")
+    predictions_path = os.path.join("results", args.model_path, "zeroshot", task_title, "predictions.txt")
     predictions_dir = os.path.dirname(predictions_path)
     if not os.path.exists(predictions_dir):
         os.makedirs(predictions_dir)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         # Run AoA prediction evaluation
         word_surprisals_n, mad_results = lm_eval.aoa_pred_eval(eval_model.model, eval_model.tokenizer,
                                                                MODEL_TYPE_REMAP[args.model_type], batch_size=32)
-        out_dir = os.path.join(args.model_path, "aoa_prediction")
+        out_dir = os.path.join("results", args.model_path, "aoa_prediction")
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         with open(os.path.join(out_dir, "extracted_average_surprisals.json"), 'w') as out_file:
