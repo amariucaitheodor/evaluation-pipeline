@@ -106,7 +106,7 @@ This evaluation is based on Portelance, Duan, Lupyan and Frank 2023 (see citatio
 If you want to run it, run the zero-shot evaluation script with the "--run_aoa" flag:
 
 ```bash
-python babylm_eval.py 'path/to/model_and_tokenizer' 'model_type' --run_aoa
+python babylm_eval.py 'theodor1289/flava_vision_infused' 'encoder' --run_aoa
 ```
 
 Note, the evaluation requires access to forward pass labels from your tokenizer. It currently expects the tokenizer to

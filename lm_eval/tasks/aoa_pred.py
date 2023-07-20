@@ -16,10 +16,10 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler, PolynomialFeatu
 from typing import Tuple, Dict, AnyStr
 from numbers import Number
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
+
 
 def open_word_list_csv():
     with open("./aoa_data/word_list.csv", newline='') as csv_file:
@@ -28,6 +28,7 @@ def open_word_list_csv():
         for row in csv_contents:
             word_list.append(row)
         return word_list
+
 
 ## Custom Dataset class for CHILDES utterances
 class CHILDESDataset(Dataset):
@@ -39,30 +40,34 @@ class CHILDESDataset(Dataset):
             for item in sent_words:
                 self.sentences.append(item['sent'])
                 self.words.append(item['words'])
+
     def __len__(self):
         return len(self.sentences)
+
     def __getitem__(self, index):
         sent = self.sentences[index]
         words = '-'.join(self.words[index])
-        return {'sent':sent, 'words': words}
+        return {'sent': sent, 'words': words}
+
 
 # create mapping from words to tokens
 def make_token_word_mappings(word_list_dict, tokenizer):
     word_mappings = dict()
     for word in word_list_dict:
         w = word['word_clean']
-        s_w = " "+w
+        s_w = " " + w
         seq = tokenizer(w, add_special_tokens=False)['input_ids']
         # if tokenizer has different tokens for words at the begining of a string vs followed by a space, get both.
         s_seq = tokenizer(s_w, add_special_tokens=False)['input_ids']
         if seq == s_seq:
-            tokens= [torch.Tensor(seq).long()]
-            n_tokens= [len(seq)]
+            tokens = [torch.Tensor(seq).long()]
+            n_tokens = [len(seq)]
         else:
-            tokens= [torch.Tensor(seq).long(), torch.Tensor(s_seq).long()]
-            n_tokens= [len(seq), len(s_seq)]
+            tokens = [torch.Tensor(seq).long(), torch.Tensor(s_seq).long()]
+            n_tokens = [len(seq), len(s_seq)]
         word_mappings[w] = (tokens, n_tokens)
     return word_mappings
+
 
 # find index matches for sequences of indexes i.e. if a word is tokenized as multiple tokens
 def indexes_in_sequence(query, base):
@@ -70,10 +75,11 @@ def indexes_in_sequence(query, base):
     label = label.squeeze()
     l = len(query)
     locations = []
-    for index in range((len(label)-l)):
-        if torch.all(label[index:index+l] == query):
+    for index in range((len(label) - l)):
+        if torch.all(label[index:index + l] == query):
             locations.append([batch_id, index])
     return locations
+
 
 # get average surprisal values from model
 r"""
@@ -82,6 +88,8 @@ r"""
     under the key ['labels'] which the code currently handles, or you will have to adjust it to make sure that labels shift
     accordingly here.
 """
+
+
 def get_batched_surprisal(model, tokenizer, model_type, dataloader, word_mapping, device):
     model.eval()
     word_surprisals_n = {}
@@ -101,12 +109,15 @@ def get_batched_surprisal(model, tokenizer, model_type, dataloader, word_mapping
                 labels = batch['input_ids']
         else:
             labels = batch['input_ids']
-        outputs = model(**batch, labels=labels)
-        surprisals = -F.log_softmax(outputs.logits, -1)
+        outputs = model(**batch)
+        try:
+            surprisals = -F.log_softmax(outputs.logits, -1)
+        except AttributeError:
+            surprisals = -F.log_softmax(outputs.mlm_logits, -1)
         labels_split = torch.tensor_split(labels, batch_size)
         word_list = list(set(sum([w.split('-') for w in words], [])))
         for word in word_list:
-            tokens, n_tokens =  word_mapping[word]
+            tokens, n_tokens = word_mapping[word]
             for indexes, n_tokens in zip(tokens, n_tokens):
                 indexes = indexes.to(device)
                 # If word is represented by a single token we can optimize run time by searching over whole batch matrix
@@ -137,8 +148,9 @@ def get_batched_surprisal(model, tokenizer, model_type, dataloader, word_mapping
     # Average the summed suprisal values for each non zero count word
     for word in word_mapping.keys():
         if word_surprisals_n[word][1] > 0:
-            word_surprisals_n[word][0] = word_surprisals_n[word][0]/ word_surprisals_n[word][1]
+            word_surprisals_n[word][0] = word_surprisals_n[word][0] / word_surprisals_n[word][1]
     return word_surprisals_n
+
 
 # fit linear regressions using LOO cross validation to get MAD scores for predicting AoA
 def get_loo_mad_results(word_surprisals_n, word_list_dict):
@@ -155,27 +167,27 @@ def get_loo_mad_results(word_surprisals_n, word_list_dict):
             data.append([word, float(aoa), lex_cat, float(concreteness), avg_surprisal, int(frequency)])
     data = np.array(data)
     # turn frequency counts into unigram surprisals
-    total = np.sum(data[:,5].astype(int))
-    unigram = -np.log(data[:,[5]].astype(int) / total)
+    total = np.sum(data[:, 5].astype(int))
+    unigram = -np.log(data[:, [5]].astype(int) / total)
     # get residualized surprisal values
-    surp_model = LinearRegression().fit(unigram, data[:,4])
+    surp_model = LinearRegression().fit(unigram, data[:, 4])
     prediction = surp_model.predict(unigram)
-    residuals = (data[:,4].astype(float) - prediction)
+    residuals = (data[:, 4].astype(float) - prediction)
     resid_surp = np.expand_dims(residuals, axis=1)
-    data = np.concatenate((data[:,0:4], resid_surp, unigram), axis=1)
+    data = np.concatenate((data[:, 0:4], resid_surp, unigram), axis=1)
     # dummy code lex_category with noun as base and predicate, function_words as separate dummy codes
     enc = OneHotEncoder(drop=['nouns'], categories=[['nouns', 'function_words', 'predicates']])
-    dummy_coded_categorical_vars = enc.fit_transform(data[:,[2]]).toarray()
+    dummy_coded_categorical_vars = enc.fit_transform(data[:, [2]]).toarray()
     # standardize variables so mean=0 and std=1
     scaler = StandardScaler()
-    scaled_continuous_vars = scaler.fit_transform(data[:,3:])
+    scaled_continuous_vars = scaler.fit_transform(data[:, 3:])
     scaled_data = np.concatenate((dummy_coded_categorical_vars, scaled_continuous_vars), axis=1)
     # get interaction term values between lexical category dummy codes and concreteness/surprisal/frequency add to dataset
     inter = PolynomialFeatures(interaction_only=True, include_bias=False)
     interactions = inter.fit_transform(scaled_data)
     # get LOO data splits
-    X = np.concatenate((interactions[:,:5], interactions[:,6:12]), axis=1)
-    y = data[:,1]
+    X = np.concatenate((interactions[:, :5], interactions[:, 6:12]), axis=1)
+    y = data[:, 1]
     loo = LeaveOneOut()
     n = loo.get_n_splits(X)
     overall_mad = 0
@@ -200,14 +212,16 @@ def get_loo_mad_results(word_surprisals_n, word_list_dict):
         else:
             noun_mad += abs_deviation
             noun_n += 1
-    overall_mad = overall_mad/n
-    noun_mad = noun_mad/noun_n
-    pred_mad = pred_mad/pred_n
-    fctword_mad = fctword_mad/fctword_n
-    return {'overall_mad':overall_mad, 'n':n, 'noun_mad':noun_mad, 'n_noun':noun_n, 'predicate_mad':pred_mad, 'n_predicate':pred_n, 'functionword_mad':fctword_mad, 'n_functionword':fctword_n}
+    overall_mad = overall_mad / n
+    noun_mad = noun_mad / noun_n
+    pred_mad = pred_mad / pred_n
+    fctword_mad = fctword_mad / fctword_n
+    return {'overall_mad': overall_mad, 'n': n, 'noun_mad': noun_mad, 'n_noun': noun_n, 'predicate_mad': pred_mad,
+            'n_predicate': pred_n, 'functionword_mad': fctword_mad, 'n_functionword': fctword_n}
 
 
-def aoa_pred_eval(model: object, tokenizer: object, model_type: str, batch_size: int = 32) -> Tuple[Dict[AnyStr, Tuple[Number, Number]], Dict[AnyStr, Number]]:
+def aoa_pred_eval(model: object, tokenizer: object, model_type: str, batch_size: int = 32) -> Tuple[
+    Dict[AnyStr, Tuple[Number, Number]], Dict[AnyStr, Number]]:
     logger.info(f"\n» Evaluating model on predicting the age of acquisition of words.")
     device = model.device
     if torch.cuda.is_available():
