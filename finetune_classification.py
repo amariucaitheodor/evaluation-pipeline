@@ -391,20 +391,14 @@ def main():
     #
     # In distributed training, the .from_pretrained methods guarantee that only one local process can concurrently
     # download model & vocab.
-    try:
-        config = AutoConfig.from_pretrained(
-            model_args.config_name if model_args.config_name else model_args.model_name_or_path,
-            num_labels=num_labels,
-            finetuning_task=data_args.task_name,
-            cache_dir=model_args.cache_dir,
-            revision=model_args.model_revision,
-            use_auth_token=model_args.use_auth_token,
-        )
-    except ValueError as e:
-        if "flava" in model_args.model_name_or_path:
-            print("Using FLAVA, no config loaded for now.")
-        else:
-            raise e
+    config = AutoConfig.from_pretrained(
+        model_args.config_name if model_args.config_name else model_args.model_name_or_path,
+        num_labels=num_labels,
+        finetuning_task=data_args.task_name,
+        cache_dir=model_args.cache_dir,
+        revision=model_args.model_revision,
+        use_auth_token=model_args.use_auth_token,
+    )
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
         cache_dir=model_args.cache_dir,
@@ -423,9 +417,7 @@ def main():
             ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
         )
     except ValueError as e:
-        from transformers import T5Config
-        from alkmi.models.flava import FlavaConfig
-        if isinstance(config, T5Config):
+        if isinstance(config, transformers.T5Config):
             from transformers_modified.t5 import T5ForSequenceClassification
             model = T5ForSequenceClassification.from_pretrained(
                 model_args.model_name_or_path,
@@ -436,13 +428,21 @@ def main():
                 use_auth_token=model_args.use_auth_token,
                 ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
             )
-        elif "flava" in model_args.model_name_or_path:
-            from alkmi.models.flava import FlavaForPreTraining, FlavaModel
+        elif isinstance(config, transformers.models.flava.FlavaConfig):
+            from alkmi.models.flava import FlavaForPreTraining, FlavaModel, FlavaConfig, FlavaTextConfig, \
+                FlavaImageConfig, FlavaMultimodalConfig, FlavaImageCodebookConfig
             from transformers_modified.flava import FlavaForSequenceClassification
             from alkmi.callbacks.utils import replace_flava_submodel_with_orig_for_eval
+            # Very similar classes, but I have my own modifications...
+            config.__class__ = FlavaConfig
+            config.text_config.__class__ = FlavaTextConfig
+            config.image_config.__class__ = FlavaImageConfig
+            config.multimodal_config.__class__ = FlavaMultimodalConfig
+            config.image_codebook_config.__class__ = FlavaImageCodebookConfig
             model = FlavaForPreTraining.from_pretrained(
                 model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                config=config,
                 cache_dir=model_args.cache_dir,
                 revision=model_args.model_revision,
                 use_auth_token=model_args.use_auth_token,
@@ -450,7 +450,7 @@ def main():
             )
             # optimized_text_model = replace_flava_submodel_with_orig_for_eval(model)
             config = model.flava.text_model.config
-            print("Using FLAVA, config loaded now!")
+            config.num_labels = num_labels
             model = FlavaForSequenceClassification(config, encoder=model.flava.text_model)
         else:
             raise e
