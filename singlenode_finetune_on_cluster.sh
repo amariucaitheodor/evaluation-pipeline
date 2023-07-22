@@ -20,7 +20,4 @@ sbatch --job-name="bash" \
   --mem-per-cpu=15000 \
   --gres=gpumem:"$VRAM_PER_GPU" \
   --output "finetune_$(date "+%F-%T").log" \
-  --wrap="./finetune_all_tasks.sh theodor1289/flava_vision_infused"
-
-# eu-a65-03 might have an issue
-# --nodelist=eu-a65-02,eu-a65-04,eu-a65-05,eu-a65-07 \
+  --wrap="./finetune_all_tasks.sh $1"
