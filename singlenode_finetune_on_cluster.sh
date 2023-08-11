@@ -17,7 +17,7 @@ sbatch --job-name="bash" \
   --ntasks-per-node="$NUM_GPUS" \
   --gpus="$NUM_GPUS" \
   --cpus-per-task=4 \
-  --mem-per-cpu=15000 \
+  --mem-per-cpu=10000 \
   --gres=gpumem:"$VRAM_PER_GPU" \
   --output "finetune_$(date "+%F-%T").log" \
   --wrap="./finetune_all_tasks.sh $1"
