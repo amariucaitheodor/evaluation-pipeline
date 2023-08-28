@@ -439,6 +439,11 @@ def main():
             config.image_config.__class__ = FlavaImageConfig
             config.multimodal_config.__class__ = FlavaMultimodalConfig
             config.image_codebook_config.__class__ = FlavaImageCodebookConfig
+
+            # Following https://github.com/facebookresearch/fairseq/tree/main/examples/roberta/config/finetuning
+            config.text_config.hidden_dropout_prob = 0.1
+            config.text_config.attention_probs_dropout_prob = 0.1
+
             model = FlavaForPreTraining.from_pretrained(
                 model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -451,6 +456,11 @@ def main():
             # optimized_text_model = replace_flava_submodel_with_orig_for_eval(model)
             config = model.flava.text_model.config
             config.num_labels = num_labels
+
+            # Following https://github.com/facebookresearch/fairseq/tree/main/examples/roberta/config/finetuning
+            assert model.flava.text_model.config.hidden_dropout_prob == 0.1, "dropout should have been set to 0.1"
+            assert model.flava.text_model.config.attention_probs_dropout_prob == 0.1, "dropout should have been set to 0.1"
+
             model = FlavaForSequenceClassification(config, encoder=model.flava.text_model)
         else:
             raise e

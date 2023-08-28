@@ -1,7 +1,7 @@
 #!/bin/bash
 
 NUM_GPUS=${2-1}
-VRAM_PER_GPU=${3-40g}
+VRAM_PER_GPU=${3-20g}
 echo "Selected configuration: $1, GPUs: $NUM_GPUS, $VRAM_PER_GPU VRAM/GPU"
 
 # 5 days is the upper limit on Euler (before PartitionTimeLimit kicks in)
