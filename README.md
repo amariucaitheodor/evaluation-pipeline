@@ -53,7 +53,7 @@ Where `model_type` is one of "encoder", "decoder" or "encoder-decoder".
 To fine-tune and evaluate a model on tasks that require fine-tuning, like the (Super)GLUE tasks or held-out MSGS tasks:
 
 ```bash
-./finetune_all_tasks.sh theodor1289/flava_vision_infused
+source finetune_all_tasks.sh theodor1289/thesis_halfsize_text1_vision0
 ```
 
 #### Hyperparameters
